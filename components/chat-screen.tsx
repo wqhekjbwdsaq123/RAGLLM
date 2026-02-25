@@ -1,19 +1,19 @@
 "use client"
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     Download,
-    ListFilter,
-    Headset,
     User,
     Bot,
     ChevronDown,
     ChevronUp,
-    CheckCircle2,
-    FileText
+    FileText,
+    ThumbsUp,
+    ThumbsDown,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { PRODUCTS } from '@/lib/products';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -24,34 +24,91 @@ interface Message {
 interface ChatScreenProps {
     messages: Message[];
     isLoading: boolean;
+    selectedProduct: string;
+    onSelectProduct: (name: string) => void;
 }
 
-export default function ChatScreen({ messages, isLoading }: ChatScreenProps) {
+// 현재 사용자 이름 (실제로는 auth에서 가져와야 함)
+const CURRENT_USER_NAME = "Alex Morgan";
+
+export default function ChatScreen({ messages, isLoading, selectedProduct, onSelectProduct }: ChatScreenProps) {
+    const router = useRouter();
+    const [productDropOpen, setProductDropOpen] = useState(false);
+
+    const handleDownload = () => {
+        const text = messages
+            .map((m) => `[${m.role === 'user' ? '나' : 'ReviewBot'}] ${m.content}`)
+            .join('\n\n');
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat_${new Date().toISOString().slice(0, 10)}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#FBFCFE]">
+        <div className="flex-1 min-h-0 flex flex-col bg-[#FBFCFE]">
             {/* Header */}
             <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-                        <Headset size={22} />
-                    </div>
+                <div className="flex items-center gap-3 relative">
                     <div>
-                        <h2 className="text-sm font-bold text-gray-900 leading-tight">Review Chatbot Analyst</h2>
-                        <p className="text-[10px] text-gray-400 font-medium tracking-wide">PINE CONE RAG SYSTEM ACTIVE</p>
+                        <button
+                            onClick={() => setProductDropOpen((p) => !p)}
+                            className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                            <span className="truncate text-gray-700 font-bold max-w-[200px]">
+                                {selectedProduct || "제품을 선택하세요"}
+                            </span>
+                            <ChevronDown size={14} className="text-gray-400 shrink-0" />
+                        </button>
+                        {productDropOpen && (
+                            <div className="absolute top-12 left-0 mt-1 w-56 border border-gray-200 rounded-lg bg-white shadow-xl overflow-hidden z-20">
+                                <button
+                                    onClick={() => {
+                                        onSelectProduct("");
+                                        setProductDropOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 border-b border-gray-100"
+                                >
+                                    전체 제품 검색
+                                </button>
+                                <div className="max-h-64 overflow-y-auto">
+                                    {PRODUCTS.map((p) => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => {
+                                                onSelectProduct(p.name);
+                                                setProductDropOpen(false);
+                                            }}
+                                            className={cn(
+                                                "w-full text-left px-4 py-3 text-xs hover:bg-blue-50 transition-colors",
+                                                selectedProduct === p.name
+                                                    ? "text-blue-600 font-bold bg-blue-50"
+                                                    : "text-gray-700 font-medium"
+                                            )}
+                                        >
+                                            {p.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                        <Download size={18} />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                        <ListFilter size={18} />
-                    </button>
-                </div>
+                {/* Download button - right aligned */}
+                <button
+                    onClick={handleDownload}
+                    title="채팅 내보내기"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                >
+                    <Download size={18} />
+                </button>
             </header>
 
             {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar min-h-0">
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-2 opacity-60">
                         <Bot size={48} />
@@ -70,7 +127,7 @@ export default function ChatScreen({ messages, isLoading }: ChatScreenProps) {
                         <div className={cn("space-y-1", msg.role === 'user' ? "text-right" : "flex-1")}>
                             <div className={cn("flex items-center gap-2", msg.role === 'user' && "justify-end")}>
                                 <span className="text-sm font-bold text-gray-900">
-                                    {msg.role === 'user' ? 'You' : 'AI Analyst'}
+                                    {msg.role === 'user' ? CURRENT_USER_NAME : 'ReviewBot'}
                                 </span>
                                 <span className="text-[10px] text-gray-400">
                                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -78,10 +135,10 @@ export default function ChatScreen({ messages, isLoading }: ChatScreenProps) {
                             </div>
 
                             <div className={cn(
-                                "p-5 rounded-2xl shadow-sm text-sm leading-relaxed",
+                                "rounded-2xl shadow-sm text-sm leading-relaxed",
                                 msg.role === 'user'
-                                    ? "bg-blue-600 text-white rounded-tr-none max-w-xl ml-auto"
-                                    : "bg-white border border-gray-100 rounded-tl-none text-gray-700 max-w-2xl"
+                                    ? "bg-blue-600 text-white rounded-tr-none max-w-xl ml-auto px-4 py-2.5"
+                                    : "bg-white border border-gray-100 rounded-tl-none text-gray-700 max-w-2xl p-5"
                             )}>
                                 {msg.content}
 
@@ -89,6 +146,11 @@ export default function ChatScreen({ messages, isLoading }: ChatScreenProps) {
                                     <References results={msg.results} />
                                 )}
                             </div>
+
+                            {/* Feedback buttons for assistant */}
+                            {msg.role === 'assistant' && (
+                                <FeedbackButtons />
+                            )}
                         </div>
 
                         {msg.role === 'user' && (
@@ -106,7 +168,7 @@ export default function ChatScreen({ messages, isLoading }: ChatScreenProps) {
                         </div>
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-gray-900">AI Analyst</span>
+                                <span className="text-sm font-bold text-gray-900">ReviewBot</span>
                             </div>
                             <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2">
                                 <div className="flex gap-1">
@@ -123,8 +185,41 @@ export default function ChatScreen({ messages, isLoading }: ChatScreenProps) {
     );
 }
 
+function FeedbackButtons() {
+    const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
+    return (
+        <div className="flex items-center gap-2 mt-1 ml-1">
+            <button
+                onClick={() => setFeedback('up')}
+                className={cn(
+                    "flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all",
+                    feedback === 'up'
+                        ? "bg-green-50 border-green-300 text-green-600"
+                        : "border-gray-200 text-gray-400 hover:border-green-300 hover:text-green-600"
+                )}
+            >
+                <ThumbsUp size={12} />
+                도움됐어요
+            </button>
+            <button
+                onClick={() => setFeedback('down')}
+                className={cn(
+                    "flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all",
+                    feedback === 'down'
+                        ? "bg-red-50 border-red-300 text-red-500"
+                        : "border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-500"
+                )}
+            >
+                <ThumbsDown size={12} />
+                도움 안 됐어요
+            </button>
+        </div>
+    );
+}
+
 function References({ results }: { results: any[] }) {
     const [isOpen, setIsOpen] = useState(false);
+    const router = useRouter();
 
     return (
         <div className="mt-4">
@@ -143,16 +238,26 @@ function References({ results }: { results: any[] }) {
                 {isOpen && (
                     <div className="p-3 bg-white border-t border-gray-100 space-y-3">
                         {results.map((res, i) => (
-                            <div key={i} className="text-xs text-gray-600 border-l-2 border-blue-200 pl-3 py-1">
-                                <div className="font-bold text-gray-800 mb-1">
-                                    {res.metadata?.title || '리뷰 발췌'}
+                            <div
+                                key={i}
+                                className="text-xs text-gray-600 border-l-2 border-blue-200 pl-3 py-1 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 rounded-r-lg transition-colors group"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/product/wireless-earbuds/reviews#review-${i}`);
+                                }}
+                            >
+                                <div className="font-bold text-gray-800 mb-1 group-hover:text-blue-600 transition-colors">
+                                    {res.metadata?.author || res.metadata?.title || '익명'}
                                 </div>
                                 <p className="italic">"{res.content}"</p>
                                 {res.metadata?.author && (
                                     <span className="text-[10px] text-gray-400 mt-1 block">
-                                        - {res.metadata.author} ({res.metadata.date})
+                                        {res.metadata.date && `- ${res.metadata.date}`}
                                     </span>
                                 )}
+                                <span className="text-[10px] text-blue-400 mt-1 block group-hover:underline">
+                                    전체 리뷰 보기 →
+                                </span>
                             </div>
                         ))}
                     </div>

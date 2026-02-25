@@ -1,20 +1,29 @@
 "use client"
 
 import React, { useState } from 'react';
-import Sidebar from '@/components/sidebar';
 import WelcomeScreen from '@/components/welcome-screen';
 import ChatScreen from '@/components/chat-screen';
 import ChatInput from '@/components/chat-input';
+import { useChat } from '@/components/chat-provider';
 
 export default function Home() {
-  const [isAnalyzed, setIsAnalyzed] = useState(false);
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string, results?: any[] }[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    isAnalyzed,
+    setIsAnalyzed,
+    messages,
+    setMessages,
+    isLoading,
+    setIsLoading,
+    selectedProduct,
+    setSelectedProduct
+  } = useChat();
+
+  const [suggestedInput, setSuggestedInput] = useState('');
 
   const handleSend = async (message: string) => {
     if (!isAnalyzed) setIsAnalyzed(true);
+    setSuggestedInput('');
 
-    // Add user message
     const newUserMsg = { role: 'user' as const, content: message };
     setMessages(prev => [...prev, newUserMsg]);
     setIsLoading(true);
@@ -23,7 +32,7 @@ export default function Home() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, productName: selectedProduct }),
       });
 
       const data = await response.json();
@@ -44,26 +53,31 @@ export default function Home() {
     }
   };
 
-  const handleNewChat = () => {
-    setIsAnalyzed(false);
-    setMessages([]);
+  const handleSuggest = (question: string) => {
+    setSuggestedInput(question);
+    handleSend(question);
   };
 
   return (
-    <main className="flex h-screen bg-gray-50 overflow-hidden font-sans">
-      <Sidebar isAnalyzed={isAnalyzed} onNewChat={handleNewChat} />
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex-1 overflow-hidden relative">
-          {isAnalyzed ? (
-            <ChatScreen messages={messages} isLoading={isLoading} />
-          ) : (
-            <WelcomeScreen />
-          )}
-        </div>
-
-        <ChatInput isAnalyzed={isAnalyzed} onSend={handleSend} />
+    <>
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col relative">
+        {isAnalyzed ? (
+          <ChatScreen
+            messages={messages}
+            isLoading={isLoading}
+            selectedProduct={selectedProduct}
+            onSelectProduct={setSelectedProduct}
+          />
+        ) : (
+          <WelcomeScreen onSuggest={handleSuggest} />
+        )}
       </div>
-    </main>
+
+      <ChatInput
+        isAnalyzed={isAnalyzed}
+        onSend={handleSend}
+        defaultValue={suggestedInput}
+      />
+    </>
   );
 }

@@ -3,6 +3,9 @@ import { pinecone, indexName, pineconeEmbeddings } from '@/lib/pinecone';
 import { PineconeStore } from '@langchain/pinecone';
 import { ChatOpenAI } from '@langchain/openai';
 
+// Vercel 서버리스 함수 최대 실행 시간 60초 (무료 플랜 최대값)
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
     try {
         const { message, productName } = await req.json();
